@@ -1,5 +1,8 @@
 import abc
+import pathlib
 from collections.abc import Iterable
+from typing import Union, Tuple
+
 
 class CalculationIO(abc.ABC):
     """Abstract base class for a calculation that is performed
@@ -12,10 +15,12 @@ class CalculationIO(abc.ABC):
         * A method to run the calculation,
         * A parser for the outputs of interest.
     """
+    path_type = Union[str, pathlib.Path]
+
     def __init__(self, name: str, directory: path_type):
         self.name = name
         self.directory = directory
-        if not Path.is_dir(directory):
+        if not pathlib.Path.is_dir(directory):
             raise NotADirectoryError(f'Not a directory: {directory}')
 
     @abc.abstractmethod
@@ -25,7 +30,7 @@ class CalculationIO(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def run(self) -> SubprocessRunResults:
+    def run(self):  # -> SubprocessRunResults:
         """ Run the calculation.
         :return Subprocess result instance.
         """
@@ -57,7 +62,7 @@ class ConvergenceCriteria(abc.ABC):
         if len(input) <= 1:
             raise ValueError('input must have a length > 1')
 
-    def check_target(func: Callable):
+    def check_target(self, func: str):  # Callable):
         """ Provide argument checking.
 
         :param func: evaluate method.
@@ -66,7 +71,7 @@ class ConvergenceCriteria(abc.ABC):
         def func_with_target_check(self, current: dict, prior: dict):
 
             # Only expect for a failed run
-            if isinstance(current, SubprocessRunResults):
+            if isinstance(current, str):  # SubprocessRunResults):
                 converged, early_exit = current.success, True
                 return converged, early_exit
 
@@ -108,4 +113,3 @@ class ConvergenceCriteria(abc.ABC):
         :return Tuple of bools indicating (converged, early_exit).
         """
         ...
-        
