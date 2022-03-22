@@ -1,7 +1,8 @@
 import abc
 import pathlib
 from collections.abc import Iterable
-from typing import Union, Tuple
+from typing import Union, Tuple, Callable
+from excitingtools.runner import SubprocessRunResults
 
 
 class CalculationIO(abc.ABC):
@@ -30,7 +31,7 @@ class CalculationIO(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def run(self):  # -> SubprocessRunResults:
+    def run(self) -> SubprocessRunResults:
         """ Run the calculation.
         :return Subprocess result instance.
         """
@@ -62,7 +63,7 @@ class ConvergenceCriteria(abc.ABC):
         if len(input) <= 1:
             raise ValueError('input must have a length > 1')
 
-    def check_target(self, func: str):  # Callable):
+    def check_target(self, func: Callable):
         """ Provide argument checking.
 
         :param func: evaluate method.
@@ -71,7 +72,7 @@ class ConvergenceCriteria(abc.ABC):
         def func_with_target_check(self, current: dict, prior: dict):
 
             # Only expect for a failed run
-            if isinstance(current, str):  # SubprocessRunResults):
+            if isinstance(current, SubprocessRunResults):
                 converged, early_exit = current.success, True
                 return converged, early_exit
 

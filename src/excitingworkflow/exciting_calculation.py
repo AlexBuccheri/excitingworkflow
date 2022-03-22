@@ -2,45 +2,60 @@ import copy
 import pathlib
 from typing import Optional, Union
 
+from excitingtools.input.input_xml import exciting_input_xml_str
+from excitingtools.parser import groundstate_parser, bse_parser
+from excitingtools.runner import SubprocessRunResults, BinaryRunner
+from excitingtools.input.ground_state import ExcitingGroundStateInput
+from excitingtools.input.structure import ExcitingStructure
+from excitingtools.input.xs import ExcitingXSInput
 from excitingworkflow.calculation_io import CalculationIO
 
 
 class ExcitingCalculation(CalculationIO):
     path_type = Union[str, pathlib.Path]
 
-    def __init__(self, name, runner, structure, ground_state, bse: Optional, directory: path_type):
+    def __init__(self,
+                 name: str,
+                 directory: path_type,
+                 runner: BinaryRunner,
+                 structure: ExcitingStructure,
+                 ground_state: ExcitingGroundStateInput,
+                 xs: Optional[ExcitingXSInput] = None):
         super().__init__(name, directory)
-        self.bse = bse
+        self.runner = runner
+        self.structure = structure
+        self.ground_state = ground_state
+        self.optional_xml_elements = {}
+        if xs is not None:
+            self.optional_xml_elements['xs'] = xs
 
     def write_inputs(self):
         self.write_input_xml()
         # TODO Copy (from some well-defined place) and write species files
 
     def write_input_xml(self):
-        pass
-        # xml_tree = exciting_input_xml(structure, ground_state, bse=bse, title=self.name)
-        # xml_string = ET.tostring(xml_tree)
-        # with open(self.directory + "/input.xml", "w") as fid:
-        #    fid.write(xml_string)
+        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name,
+                                              **self.optional_xml_elements)
 
-    def run(self):  # -> SubprocessRunResults:
+        with open(self.directory + "/input.xml", "w") as fid:
+            fid.write(xml_tree_str)
+
+    def run(self) -> SubprocessRunResults:
         """ Wrapper for simple BinaryRunner.
 
         :return: Subprocess results or NotImplementedError.
         """
-        # return self.runner.run()
-        return
+        return self.runner.run()
 
-    def parse_output(self) -> FileNotFoundError:  # Union[dict, FileNotFoundError]:
+    def parse_output(self) -> Union[dict, FileNotFoundError]:
         """
         """
-        # info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
-        # eps_singlet = bse_parser.parse_EPSILON_NAR("file_name")
-        # return {**info_out, **eps_singlet}
-        return FileNotFoundError
+        info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
+        eps_singlet = bse_parser.parse_EPSILON_NAR("EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
+        return {**info_out, **eps_singlet}
 
 
 def set_gqmax(gq_max: float, calculation: ExcitingCalculation):
     new_calculation = copy.deepcopy(calculation)
-    new_calculation.bse.gq_max = gq_max
+    new_calculation.optional_xml_elements['xs'].xs['gqmax'] = gq_max
     new_calculation.write_input_xml()
