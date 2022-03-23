@@ -12,6 +12,10 @@ from excitingworkflow.calculation_io import CalculationIO
 
 
 class ExcitingCalculation(CalculationIO):
+    """
+    Function for generating an exciting calculation. You can write the necessary input files, execute the calculation
+    and parse the results.
+    """
     path_type = Union[str, pathlib.Path]
 
     def __init__(self,
@@ -21,6 +25,14 @@ class ExcitingCalculation(CalculationIO):
                  structure: ExcitingStructure,
                  ground_state: ExcitingGroundStateInput,
                  xs: Optional[ExcitingXSInput] = None):
+        """
+        :param name: title of the calculation
+        :param directory: where to run the calculation
+        :param runner: Runner to run exciting
+        :param structure: Object containing the xml structure info
+        :param ground_state: Object containing the xml groundstate info
+        :param xs: Object containing the xml xs info
+        """
         super().__init__(name, directory)
         self.runner = runner
         self.structure = structure
@@ -50,6 +62,7 @@ class ExcitingCalculation(CalculationIO):
     def parse_output(self) -> Union[dict, FileNotFoundError]:
         """
         """
+        # TODO: Parse INFOXS.OUT; INFO.OUT not needed, not even present?
         info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
         eps_singlet = bse_parser.parse_EPSILON_NAR("EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
         return {**info_out, **eps_singlet}
