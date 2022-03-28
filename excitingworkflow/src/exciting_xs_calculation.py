@@ -9,7 +9,7 @@ from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
 from excitingtools.input.xs import ExcitingXSInput
-from src.calculation_io import CalculationIO
+from excitingworkflow.src.calculation_io import CalculationIO
 
 
 class ExcitingXSCalculation(CalculationIO):

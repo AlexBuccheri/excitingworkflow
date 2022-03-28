@@ -10,7 +10,7 @@ from excitingtools.parser import groundstate_parser
 from excitingtools.runner import SubprocessRunResults
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from src.calculation_io import CalculationIO
+from excitingworkflow.src.calculation_io import CalculationIO
 from exgw.src.job_schedulers import slurm
 
 
