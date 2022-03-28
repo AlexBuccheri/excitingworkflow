@@ -75,7 +75,7 @@ class ExcitingGSSlurmCalculation(CalculationIO):
     def run(self) -> SubprocessRunResults:
         """ Puts a calculation in the slurm queue.
         """
-        execution_list = ['sbatch', str(self.directory) + '/submit_run.sh']
+        execution_list = ['sbatch', '/submit_run.sh']
         time_start = time.time()
         result = subprocess.run(execution_list,
                                 stdout=subprocess.PIPE,
