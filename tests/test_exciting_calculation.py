@@ -1,4 +1,4 @@
-from src.exciting_groundstate_calculation import ExcitingGroundStateCalculation
+from excitingworkflow.src.exciting_groundstate_calculation import ExcitingGroundStateCalculation
 from excitingtools.runner import BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure

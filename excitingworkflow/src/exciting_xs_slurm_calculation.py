@@ -20,11 +20,9 @@ class ExcitingXSSlurmCalculation(CalculationIO):
     Function for generating an exciting calculation. You can write the necessary input files, execute the calculation
     and parse the results.
     """
-    path_type = Union[str, pathlib.Path]
-
     def __init__(self,
                  name: str,
-                 directory: path_type,
+                 directory: CalculationIO.path_type,
                  structure: ExcitingStructure,
                  ground_state: ExcitingGroundStateInput,
                  xs: ExcitingXSInput,
@@ -86,7 +84,8 @@ class ExcitingXSSlurmCalculation(CalculationIO):
         time_start = time.time()
         result = subprocess.run(execution_list,
                                 stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+                                stderr=subprocess.PIPE,
+                                cwd=self.directory)
         total_time = time.time() - time_start
         return SubprocessRunResults(result.stdout, result.stderr, result.returncode, total_time)
 
