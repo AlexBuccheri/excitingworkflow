@@ -11,7 +11,7 @@ from excitingtools.runner import SubprocessRunResults
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
 from excitingtools.input.xs import ExcitingXSInput
-from excitingworkflow.calculation_io import CalculationIO
+from src.calculation_io import CalculationIO
 from exgw.src.job_schedulers import slurm
 
 

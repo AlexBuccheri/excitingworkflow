@@ -7,7 +7,7 @@ from excitingtools.parser import groundstate_parser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingworkflow.calculation_io import CalculationIO
+from src.calculation_io import CalculationIO
 
 
 class ExcitingGroundStateCalculation(CalculationIO):

@@ -1,5 +1,5 @@
 import numpy as np
-from excitingworkflow.calculation_io import CalculationIO
+from src.calculation_io import CalculationIO
 
 
 def test_calc():
