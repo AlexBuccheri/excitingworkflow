@@ -20,9 +20,11 @@ class CalculationIO(abc.ABC):
 
     def __init__(self, name: str, directory: path_type):
         self.name = name
-        self.directory = directory
-        if not pathlib.Path.is_dir(directory):
+        if isinstance(directory, str):
+            directory = pathlib.Path(directory)
+        if not directory.is_dir():
             raise NotADirectoryError(f'Not a directory: {directory}')
+        self.directory = directory
 
     @abc.abstractmethod
     def write_inputs(self) -> None:
