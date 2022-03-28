@@ -6,16 +6,15 @@ from typing import Optional, Union
 from collections import OrderedDict
 
 from excitingtools.input.input_xml import exciting_input_xml_str
-from excitingtools.parser import bse_parser
+from excitingtools.parser import groundstate_parser
 from excitingtools.runner import SubprocessRunResults
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingtools.input.xs import ExcitingXSInput
 from src.calculation_io import CalculationIO
 from exgw.src.job_schedulers import slurm
 
 
-class ExcitingXSSlurmCalculation(CalculationIO):
+class ExcitingGSSlurmCalculation(CalculationIO):
     """
     Function for generating an exciting calculation. You can write the necessary input files, execute the calculation
     and parse the results.
@@ -27,21 +26,18 @@ class ExcitingXSSlurmCalculation(CalculationIO):
                  directory: path_type,
                  structure: ExcitingStructure,
                  ground_state: ExcitingGroundStateInput,
-                 xs: ExcitingXSInput,
                  slurm_directives: Optional[OrderedDict] = None):
         """
         :param name: title of the calculation
         :param directory: where to run the calculation
         :param structure: Object containing the xml structure info
         :param ground_state: Object containing the xml groundstate info
-        :param xs: Object containing the xml xs info
         """
         super().__init__(name, directory)
         self.path_to_species_files = structure.species_path
         structure.species_path = './'
         self.structure = structure
         self.ground_state = ground_state
-        self.optional_xml_elements = {'xs': xs}
         default_directives = slurm.set_slurm_directives(job_name=self.name,
                                                         time=[0, 24, 0, 0],
                                                         partition='all',
@@ -62,8 +58,7 @@ class ExcitingXSSlurmCalculation(CalculationIO):
         self.write_slurm_script()
 
     def write_input_xml(self):
-        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name,
-                                              **self.optional_xml_elements)
+        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name)
 
         with open(self.directory / "input.xml", "w") as fid:
             fid.write(xml_tree_str)
@@ -93,5 +88,5 @@ class ExcitingXSSlurmCalculation(CalculationIO):
     def parse_output(self) -> Union[dict, FileNotFoundError]:
         """
         """
-        eps_singlet = bse_parser.parse_EPSILON_NAR("EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
-        return {**eps_singlet}
+        info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
+        return {**info_out}
