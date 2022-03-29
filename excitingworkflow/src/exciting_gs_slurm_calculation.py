@@ -1,10 +1,10 @@
-import pathlib
 import shutil
 import subprocess
 import time
 from typing import Optional, Union
 from collections import OrderedDict
 
+import schedule
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.parser import groundstate_parser
 from excitingtools.runner import SubprocessRunResults
@@ -12,6 +12,18 @@ from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
 from excitingworkflow.src.calculation_io import CalculationIO
 from exgw.src.job_schedulers import slurm
+
+
+def find_job_state(job_info: str) -> str:
+    """
+    Find the job state in the scontrol show job JOBID output
+    :param job_info:
+    :return: the job state
+    """
+    job_info = job_info.split()
+    for info in job_info:
+        if info.split('=')[0] == 'JobState':
+            return info.split('=')[1]
 
 
 class ExcitingGSSlurmCalculation(CalculationIO):
@@ -72,17 +84,55 @@ class ExcitingGSSlurmCalculation(CalculationIO):
         with open(self.directory / "submit_run.sh", "w") as fid:
             fid.write(run_script)
 
-    def run(self) -> SubprocessRunResults:
+    @staticmethod
+    def is_exited(jobnumber: int) -> bool:
+        execution_list = ['scontrol', 'show', 'job', str(jobnumber)]
+        result = subprocess.run(execution_list,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+        return find_job_state(str(result.stdout)) == 'COMPLETED'
+
+    def wait_calculation_finish(self, jobnumber: int):
+        schedule.clear()
+        job1 = schedule.every(5).seconds
+        job1.do(self.is_exited, jobnumber=jobnumber)
+        schedule.run_all()
+
+        job_finished = False
+        while not job_finished:
+            should_run_jobs = (job for job in schedule.jobs if job.should_run)
+            for job in sorted(should_run_jobs):
+                job_finished = job.run()
+            time.sleep(1)
+
+    def submit_to_slurm(self) -> int:
         """ Puts a calculation in the slurm queue.
+        :return: jobnumber in the queue
         """
         execution_list = ['sbatch', 'submit_run.sh']
-        time_start = time.time()
         result = subprocess.run(execution_list,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 cwd=self.directory)
+        if not result.returncode == 0:
+            assert RuntimeError(f"Couldn't put the calculation into queue: {result.stderr}")
+        return int(result.stdout.split()[3])
+
+    def run(self) -> SubprocessRunResults:
+        """
+        Executes a calculation. Put in queue, wait for finish.
+        """
+        time_start = time.time()
+        jobnumber = self.submit_to_slurm()
+        self.wait_calculation_finish(jobnumber)
         total_time = time.time() - time_start
-        return SubprocessRunResults(result.stdout, result.stderr, result.returncode, total_time)
+        # TODO(Fab): Add handling for errors and time out
+        returncode = 0
+        with open('slurm-' + str(jobnumber) + '.out') as fid:
+            stdout = fid.readlines()
+        with open('terminal.out') as fid:
+            stderr = fid.readlines()
+        return SubprocessRunResults(stdout, stderr, returncode, total_time)
 
     def parse_output(self) -> Union[dict, FileNotFoundError]:
         """
