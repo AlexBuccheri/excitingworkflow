@@ -87,5 +87,5 @@ class ExcitingGSSlurmCalculation(CalculationIO):
     def parse_output(self) -> Union[dict, FileNotFoundError]:
         """
         """
-        info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
+        info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
         return {**info_out}
