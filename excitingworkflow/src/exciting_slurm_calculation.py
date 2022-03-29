@@ -78,7 +78,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
 
     def wait_calculation_finish(self):
         schedule.clear()
-        job1 = schedule.every(5).seconds
+        job1 = schedule.every(30).seconds
         job1.do(self.is_exited)
         schedule.run_all()
 

@@ -70,5 +70,6 @@ class ExcitingCalculation(CalculationIO):
         if self.optional_xml_elements == {}:
             info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
             return {**info_out}
-        eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
+        eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
+                                                   "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
         return {**eps_singlet}
