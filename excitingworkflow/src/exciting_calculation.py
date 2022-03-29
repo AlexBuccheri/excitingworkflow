@@ -68,7 +68,7 @@ class ExcitingCalculation(CalculationIO):
         TODO(Fab): Rethink this, what is needed
         """
         if self.optional_xml_elements == {}:
-            info_out: dict = groundstate_parser.parse_info_out("INFO.OUT")
+            info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
             return {**info_out}
         eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
         return {**eps_singlet}
