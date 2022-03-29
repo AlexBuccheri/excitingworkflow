@@ -44,6 +44,8 @@ class ExcitingGSSlurmCalculation(CalculationIO):
         :param ground_state: Object containing the xml groundstate info
         """
         super().__init__(name, directory)
+        self.jobnumber = None
+        self.status = None
         self.path_to_species_files = structure.species_path
         structure.species_path = './'
         self.structure = structure
@@ -84,18 +86,18 @@ class ExcitingGSSlurmCalculation(CalculationIO):
         with open(self.directory / "submit_run.sh", "w") as fid:
             fid.write(run_script)
 
-    @staticmethod
-    def is_exited(jobnumber: int) -> bool:
-        execution_list = ['scontrol', 'show', 'job', str(jobnumber)]
+    def is_exited(self) -> bool:
+        execution_list = ['scontrol', 'show', 'job', str(self.jobnumber)]
         result = subprocess.run(execution_list,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-        return find_job_state(str(result.stdout)) == 'COMPLETED'
+        self.status = find_job_state(str(result.stdout))
+        return self.status in ['COMPLETED', 'TIMEOUT']
 
-    def wait_calculation_finish(self, jobnumber: int):
+    def wait_calculation_finish(self):
         schedule.clear()
         job1 = schedule.every(5).seconds
-        job1.do(self.is_exited, jobnumber=jobnumber)
+        job1.do(self.is_exited)
         schedule.run_all()
 
         job_finished = False
@@ -105,7 +107,7 @@ class ExcitingGSSlurmCalculation(CalculationIO):
                 job_finished = job.run()
             time.sleep(1)
 
-    def submit_to_slurm(self) -> int:
+    def submit_to_slurm(self):
         """ Puts a calculation in the slurm queue.
         :return: jobnumber in the queue
         """
@@ -116,22 +118,24 @@ class ExcitingGSSlurmCalculation(CalculationIO):
                                 cwd=self.directory)
         if not result.returncode == 0:
             assert RuntimeError(f"Couldn't put the calculation into queue: {result.stderr}")
-        return int(result.stdout.split()[3])
+        self.jobnumber = int(result.stdout.split()[3])
 
     def run(self) -> SubprocessRunResults:
         """
         Executes a calculation. Put in queue, wait for finish.
         """
         time_start = time.time()
-        jobnumber = self.submit_to_slurm()
-        self.wait_calculation_finish(jobnumber)
+        self.submit_to_slurm()
+        self.wait_calculation_finish()
         total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out
+        if self.status == 'TIMEOUT':
+            print("TIMEOUT reached!")
         returncode = 0
-        with open(self.directory / ('slurm-' + str(jobnumber) + '.out')) as fid:
-            stdout = fid.readlines()
-        with open(self.directory / 'terminal.out') as fid:
+        with open(self.directory / ('slurm-' + str(self.jobnumber) + '.out')) as fid:
             stderr = fid.readlines()
+        with open(self.directory / 'terminal.out') as fid:
+            stdout = fid.readlines()
         return SubprocessRunResults(stdout, stderr, returncode, total_time)
 
     def parse_output(self) -> Union[dict, FileNotFoundError]:
