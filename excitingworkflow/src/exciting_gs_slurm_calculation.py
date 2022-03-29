@@ -128,9 +128,9 @@ class ExcitingGSSlurmCalculation(CalculationIO):
         total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out
         returncode = 0
-        with open('slurm-' + str(jobnumber) + '.out') as fid:
+        with open(self.directory / ('slurm-' + str(jobnumber) + '.out')) as fid:
             stdout = fid.readlines()
-        with open('terminal.out') as fid:
+        with open(self.directory / 'terminal.out') as fid:
             stderr = fid.readlines()
         return SubprocessRunResults(stdout, stderr, returncode, total_time)
 
