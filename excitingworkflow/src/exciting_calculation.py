@@ -12,18 +12,32 @@ from excitingtools.input.structure import ExcitingStructure
 from excitingworkflow.src.calculation_io import CalculationIO
 
 
-def parse_element(path_to_gs_calculation: pathlib.Path, element_tag: str) -> ET.Element:
-    tree = ET.parse(path_to_gs_calculation / "input.xml")
+def get_element_from_root(directory: pathlib.Path, element_tag: str) -> ET.Element:
+    tree = ET.parse(directory / "input.xml")
     root = tree.getroot()
     element = None
     for element in root:
         if element.tag == element_tag:
             break
+    return element
+
+
+def parse_element(path_to_gs_calculation: pathlib.Path, element_tag: str) -> ET.Element:
+    element = get_element_from_root(path_to_gs_calculation, element_tag)
     if element is None:
         raise ValueError('Given element_tag doesnt exist in the input.xml.')
     if element_tag == 'groundstate':
         element.set('do', 'skip')
     return element
+
+
+def find_species_files(path_to_gs_calculation: pathlib.Path) -> list:
+    structure_tree = get_element_from_root(path_to_gs_calculation, 'structure')
+    unique_elements = set()
+    for element in structure_tree:
+        if element.tag == 'species':
+            unique_elements.add(element.get('speciesfile'))
+    return sorted(unique_elements)
 
 
 class ExcitingCalculation(CalculationIO):
@@ -49,6 +63,7 @@ class ExcitingCalculation(CalculationIO):
         """
         super().__init__(name, directory)
         self.path_to_species_files = None
+        self.unique_species = None
         self.runner = runner
         self.structure = self.init_structure(structure)
         self.ground_state = self.init_ground_state(ground_state)
@@ -61,10 +76,12 @@ class ExcitingCalculation(CalculationIO):
         if isinstance(structure, ExcitingStructure):
             self.path_to_species_files = structure.species_path
             structure.species_path = './'
+            self.unique_species = structure.unique_species
             return structure
         if isinstance(structure, str):
             structure = pathlib.Path(structure)
         self.path_to_species_files = str(structure)
+        self.unique_species = find_species_files(structure)
         return parse_element(structure, 'structure')
 
     def init_ground_state(self, ground_state: Union[ExcitingGroundStateInput,
@@ -83,8 +100,7 @@ class ExcitingCalculation(CalculationIO):
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
-        species = self.structure.unique_species
-        for speci in species:
+        for speci in self.unique_species:
             shutil.copy(self.path_to_species_files + speci + '.xml', self.directory)
         self.write_input_xml()
         self.write_slurm_script()
