@@ -32,7 +32,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
     def __init__(self,
                  name: str,
                  directory: ExcitingCalculation.path_type,
-                 structure: ExcitingStructure,
+                 structure: Union[ExcitingStructure, ExcitingCalculation.path_type],
                  ground_state: Union[ExcitingGroundStateInput, ExcitingCalculation.path_type],
                  xs: Optional[ExcitingXSInput] = None,
                  slurm_directives: Optional[OrderedDict] = None):
