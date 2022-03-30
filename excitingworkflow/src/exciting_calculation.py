@@ -1,6 +1,8 @@
+import pathlib
 import shutil
 from typing import Union, Optional
 
+import xml.etree.ElementTree as ET
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.input.xs import ExcitingXSInput
 from excitingtools.parser import groundstate_parser, bse_parser
@@ -8,6 +10,18 @@ from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
 from excitingworkflow.src.calculation_io import CalculationIO
+
+
+def parse_groundstate(groundstate: pathlib.Path) -> ExcitingGroundStateInput:
+    tree = ET.parse(groundstate / "input.xml")
+    root = tree.getroot()
+    for i in range(len(root)):
+        if root[i].tag == 'groundstate':
+            break
+    gs_tree = root[i]
+    gs_attribs = {key: value for key, value in gs_tree.attrib.items()}
+    gs_attribs['do'] = 'skip'
+    return ExcitingGroundStateInput(**gs_attribs)
 
 
 class ExcitingCalculation(CalculationIO):
@@ -19,7 +33,7 @@ class ExcitingCalculation(CalculationIO):
                  name: str,
                  directory: CalculationIO.path_type,
                  structure: ExcitingStructure,
-                 ground_state: ExcitingGroundStateInput,
+                 ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type],
                  runner: BinaryRunner,
                  xs: Optional[ExcitingXSInput] = None):
         """
@@ -27,17 +41,28 @@ class ExcitingCalculation(CalculationIO):
         :param directory: where to run the calculation
         :param runner: Runner to run exciting
         :param structure: Object containing the xml structure info
-        :param ground_state: Object containing the xml groundstate info
+        :param ground_state: Object containing the xml groundstate info OR path to already performed gs calculation
+        from where the necessary files STATE.OUT and EFERMI.OUT are copied
+        :param xs: optional xml xs info
         """
         super().__init__(name, directory)
         self.path_to_species_files = structure.species_path
         structure.species_path = './'
         self.runner = runner
         self.structure = structure
-        self.ground_state = ground_state
+        self.ground_state = self.init_ground_state(ground_state)
         self.optional_xml_elements = {}
         if xs is not None:
             self.optional_xml_elements['xs'] = xs
+
+    def init_ground_state(self, ground_state):
+        if isinstance(ground_state, ExcitingGroundStateInput):
+            return ground_state
+        if isinstance(ground_state, str):
+            ground_state = pathlib.Path(ground_state)
+        shutil.copy(ground_state / 'STATE.OUT', self.directory)
+        shutil.copy(ground_state / 'EFERMI.OUT', self.directory)
+        return parse_groundstate(ground_state)
 
     def write_inputs(self):
         species = self.structure.unique_species

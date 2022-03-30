@@ -1,6 +1,6 @@
 import subprocess
 import time
-from typing import Optional
+from typing import Optional, Union
 from collections import OrderedDict
 
 import schedule
@@ -33,14 +33,17 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
                  name: str,
                  directory: ExcitingCalculation.path_type,
                  structure: ExcitingStructure,
-                 ground_state: ExcitingGroundStateInput,
+                 ground_state: Union[ExcitingGroundStateInput, ExcitingCalculation.path_type],
                  xs: Optional[ExcitingXSInput] = None,
                  slurm_directives: Optional[OrderedDict] = None):
         """
         :param name: title of the calculation
         :param directory: where to run the calculation
         :param structure: Object containing the xml structure info
-        :param ground_state: Object containing the xml groundstate info
+        :param ground_state: Object containing the xml groundstate info OR path to already performed gs calculation
+        from where the necessary files STATE.OUT and EFERMI.OUT are copied
+        :param xs: optional xml xs info
+        :param slurm_directives: slurm infos to specify how the calculation should be run
         """
         super().__init__(name, directory, structure, ground_state, BinaryRunner('', '', 1, 1), xs)
         self.jobnumber = None
@@ -91,7 +94,6 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
 
     def submit_to_slurm(self):
         """ Puts a calculation in the slurm queue.
-        :return: jobnumber in the queue
         """
         execution_list = ['sbatch', 'submit_run.sh']
         result = subprocess.run(execution_list,
