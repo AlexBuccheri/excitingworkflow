@@ -76,11 +76,11 @@ class ExcitingCalculation(CalculationIO):
         if isinstance(structure, ExcitingStructure):
             self.path_to_species_files = structure.species_path
             structure.species_path = './'
-            self.unique_species = structure.unique_species
+            self.unique_species = [x + '.xml' for x in structure.unique_species]
             return structure
         if isinstance(structure, str):
             structure = pathlib.Path(structure)
-        self.path_to_species_files = str(structure)
+        self.path_to_species_files = str(structure) + '/'
         self.unique_species = find_species_files(structure)
         return parse_element(structure, 'structure')
 
@@ -101,7 +101,7 @@ class ExcitingCalculation(CalculationIO):
         TODO: Allow different names for species files.
         """
         for speci in self.unique_species:
-            shutil.copy(self.path_to_species_files + speci + '.xml', self.directory)
+            shutil.copy(self.path_to_species_files + speci, self.directory)
         self.write_input_xml()
         self.write_slurm_script()
 
