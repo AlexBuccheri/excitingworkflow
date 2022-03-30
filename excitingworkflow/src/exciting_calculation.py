@@ -12,16 +12,18 @@ from excitingtools.input.structure import ExcitingStructure
 from excitingworkflow.src.calculation_io import CalculationIO
 
 
-def parse_groundstate(groundstate: pathlib.Path) -> ExcitingGroundStateInput:
-    tree = ET.parse(groundstate / "input.xml")
+def parse_element(path_to_gs_calculation: pathlib.Path, element_tag: str) -> ET.Element:
+    tree = ET.parse(path_to_gs_calculation / "input.xml")
     root = tree.getroot()
-    for i in range(len(root)):
-        if root[i].tag == 'groundstate':
+    element = None
+    for element in root:
+        if element.tag == element_tag:
             break
-    gs_tree = root[i]
-    gs_attribs = {key: value for key, value in gs_tree.attrib.items()}
-    gs_attribs['do'] = 'skip'
-    return ExcitingGroundStateInput(**gs_attribs)
+    if element is None:
+        raise ValueError('Given element_tag doesnt exist in the input.xml.')
+    if element_tag == 'groundstate':
+        element.set('do', 'skip')
+    return element
 
 
 class ExcitingCalculation(CalculationIO):
@@ -32,7 +34,7 @@ class ExcitingCalculation(CalculationIO):
     def __init__(self,
                  name: str,
                  directory: CalculationIO.path_type,
-                 structure: ExcitingStructure,
+                 structure: Union[ExcitingStructure, CalculationIO.path_type],
                  ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type],
                  runner: BinaryRunner,
                  xs: Optional[ExcitingXSInput] = None):
@@ -49,11 +51,19 @@ class ExcitingCalculation(CalculationIO):
         self.path_to_species_files = structure.species_path
         structure.species_path = './'
         self.runner = runner
-        self.structure = structure
+        self.structure = self.init_structure(structure)
         self.ground_state = self.init_ground_state(ground_state)
         self.optional_xml_elements = {}
         if xs is not None:
             self.optional_xml_elements['xs'] = xs
+
+    @staticmethod
+    def init_structure(structure):
+        if isinstance(structure, ExcitingStructure):
+            return structure
+        if isinstance(structure, str):
+            structure = pathlib.Path(structure)
+        return parse_element(structure, 'structure')
 
     def init_ground_state(self, ground_state):
         if isinstance(ground_state, ExcitingGroundStateInput):
@@ -62,7 +72,7 @@ class ExcitingCalculation(CalculationIO):
             ground_state = pathlib.Path(ground_state)
         shutil.copy(ground_state / 'STATE.OUT', self.directory)
         shutil.copy(ground_state / 'EFERMI.OUT', self.directory)
-        return parse_groundstate(ground_state)
+        return parse_element(ground_state, 'groundstate')
 
     def write_inputs(self):
         species = self.structure.unique_species
