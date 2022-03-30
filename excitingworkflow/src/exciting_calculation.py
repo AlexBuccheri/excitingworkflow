@@ -48,8 +48,7 @@ class ExcitingCalculation(CalculationIO):
         :param xs: optional xml xs info
         """
         super().__init__(name, directory)
-        self.path_to_species_files = structure.species_path
-        structure.species_path = './'
+        self.path_to_species_files = None
         self.runner = runner
         self.structure = self.init_structure(structure)
         self.ground_state = self.init_ground_state(ground_state)
@@ -57,15 +56,20 @@ class ExcitingCalculation(CalculationIO):
         if xs is not None:
             self.optional_xml_elements['xs'] = xs
 
-    @staticmethod
-    def init_structure(structure):
+    def init_structure(self, structure: Union[ExcitingStructure, CalculationIO.path_type]) -> Union[ExcitingStructure,
+                                                                                                    ET.Element]:
         if isinstance(structure, ExcitingStructure):
+            self.path_to_species_files = structure.species_path
+            structure.species_path = './'
             return structure
         if isinstance(structure, str):
             structure = pathlib.Path(structure)
+        self.path_to_species_files = str(structure)
         return parse_element(structure, 'structure')
 
-    def init_ground_state(self, ground_state):
+    def init_ground_state(self, ground_state: Union[ExcitingGroundStateInput,
+                                                    CalculationIO.path_type]) -> Union[ExcitingGroundStateInput,
+                                                                                       ET.Element]:
         if isinstance(ground_state, ExcitingGroundStateInput):
             return ground_state
         if isinstance(ground_state, str):
@@ -75,6 +79,10 @@ class ExcitingCalculation(CalculationIO):
         return parse_element(ground_state, 'groundstate')
 
     def write_inputs(self):
+        """
+        Force the species files to be in the run directory.
+        TODO: Allow different names for species files.
+        """
         species = self.structure.unique_species
         for speci in species:
             shutil.copy(self.path_to_species_files + speci + '.xml', self.directory)
