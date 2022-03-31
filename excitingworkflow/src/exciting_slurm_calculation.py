@@ -110,6 +110,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
         """
         time_start = time.time()
         self.submit_to_slurm()
+        print(f'Put calculation into queue, JOBID={self.jobnumber}')
         self.wait_calculation_finish()
         total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out

@@ -1,4 +1,4 @@
-from excitingworkflow.src.exciting_groundstate_calculation import ExcitingGroundStateCalculation
+from excitingworkflow.src.exciting_calculation import ExcitingCalculation
 from excitingtools.runner import BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
@@ -28,6 +28,6 @@ def test_ExcitingCalculation(tmpdir):
                          screening=screening_attributes,
                          qpointset=qpointset_input,
                          plan=plan_input)
-    calculation1 = ExcitingGroundStateCalculation('test1', str(tmpdir), runner1, structure, groundstate, xs)
+    calculation1 = ExcitingCalculation('test1', str(tmpdir), structure, groundstate, runner1, xs)
 
     calculation1.write_inputs()
