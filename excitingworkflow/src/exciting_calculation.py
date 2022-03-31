@@ -3,6 +3,8 @@ import shutil
 from typing import Union, Optional
 
 import xml.etree.ElementTree as ET
+
+import numpy as np
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.input.xs import ExcitingXSInput
 from excitingtools.parser import groundstate_parser, bse_parser
@@ -127,8 +129,9 @@ class ExcitingCalculation(CalculationIO):
         TODO(Fab): Rethink this, what is needed
         """
         if self.optional_xml_elements == {}:
+            totengy = {'TOTENERGY': np.genfromtxt(self.directory / 'TOTENERGY.OUT')}
             info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
-            return {**info_out}
+            return {**info_out, **totengy}
         eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                    "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
         return {**eps_singlet}
