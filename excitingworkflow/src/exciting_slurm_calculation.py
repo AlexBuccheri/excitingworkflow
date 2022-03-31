@@ -1,17 +1,14 @@
-import shutil
 import subprocess
 import time
 from typing import Optional, Union
 from collections import OrderedDict
 
 import schedule
-from excitingtools.input.input_xml import exciting_input_xml_str
-from excitingtools.parser import bse_parser
-from excitingtools.runner import SubprocessRunResults
+from excitingtools.input.xs import ExcitingXSInput
+from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingtools.input.xs import ExcitingXSInput
-from excitingworkflow.src.calculation_io import CalculationIO
+from excitingworkflow.src.exciting_calculation import ExcitingCalculation
 from exgw.src.job_schedulers import slurm
 
 
@@ -27,31 +24,30 @@ def find_job_state(job_info: str) -> str:
             return info.split('=')[1]
 
 
-class ExcitingXSSlurmCalculation(CalculationIO):
+class ExcitingSlurmCalculation(ExcitingCalculation):
     """
-    Function for generating an exciting calculation. You can write the necessary input files, execute the calculation
-    and parse the results.
+    Function for generating an exciting calculation on dune with slurm. You can write the necessary input files,
+    execute the calculation and parse the results.
     """
     def __init__(self,
                  name: str,
-                 directory: CalculationIO.path_type,
-                 structure: ExcitingStructure,
-                 ground_state: ExcitingGroundStateInput,
-                 xs: ExcitingXSInput,
+                 directory: ExcitingCalculation.path_type,
+                 structure: Union[ExcitingStructure, ExcitingCalculation.path_type],
+                 ground_state: Union[ExcitingGroundStateInput, ExcitingCalculation.path_type],
+                 xs: Optional[ExcitingXSInput] = None,
                  slurm_directives: Optional[OrderedDict] = None):
         """
         :param name: title of the calculation
         :param directory: where to run the calculation
         :param structure: Object containing the xml structure info
-        :param ground_state: Object containing the xml groundstate info
-        :param xs: Object containing the xml xs info
+        :param ground_state: Object containing the xml groundstate info OR path to already performed gs calculation
+        from where the necessary files STATE.OUT and EFERMI.OUT are copied
+        :param xs: optional xml xs info
+        :param slurm_directives: slurm infos to specify how the calculation should be run
         """
-        super().__init__(name, directory)
-        self.path_to_species_files = structure.species_path
-        structure.species_path = './'
-        self.structure = structure
-        self.ground_state = ground_state
-        self.optional_xml_elements = {'xs': xs}
+        super().__init__(name, directory, structure, ground_state, BinaryRunner('', '', 1, 1), xs)
+        self.jobnumber = None
+        self.status = None
         default_directives = slurm.set_slurm_directives(job_name=self.name,
                                                         time=[0, 24, 0, 0],
                                                         partition='all',
@@ -64,20 +60,6 @@ class ExcitingXSSlurmCalculation(CalculationIO):
             slurm_directives = default_directives
         self.slurm_directives = slurm_directives
 
-    def write_inputs(self):
-        species = self.structure.unique_species
-        for speci in species:
-            shutil.copy(self.path_to_species_files + speci + '.xml', self.directory)
-        self.write_input_xml()
-        self.write_slurm_script()
-
-    def write_input_xml(self):
-        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name,
-                                              **self.optional_xml_elements)
-
-        with open(self.directory / "input.xml", "w") as fid:
-            fid.write(xml_tree_str)
-
     def write_slurm_script(self):
         default_env_vars = OrderedDict([('EXE',
                                          '/mnt/beegfs2018/scratch/peschelf/code/release/exciting/bin/exciting_mpismp'),
@@ -89,18 +71,18 @@ class ExcitingXSSlurmCalculation(CalculationIO):
         with open(self.directory / "submit_run.sh", "w") as fid:
             fid.write(run_script)
 
-    @staticmethod
-    def is_exited(jobnumber: int) -> bool:
-        execution_list = ['scontrol', 'show', 'job', str(jobnumber)]
+    def is_exited(self) -> bool:
+        execution_list = ['scontrol', 'show', 'job', str(self.jobnumber)]
         result = subprocess.run(execution_list,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-        return find_job_state(str(result.stdout)) == 'COMPLETED'
+        self.status = find_job_state(str(result.stdout))
+        return self.status in ['COMPLETED', 'TIMEOUT']
 
-    def wait_calculation_finish(self, jobnumber: int):
+    def wait_calculation_finish(self):
         schedule.clear()
-        job1 = schedule.every(5).seconds
-        job1.do(self.is_exited, jobnumber=jobnumber)
+        job1 = schedule.every(30).seconds
+        job1.do(self.is_exited)
         schedule.run_all()
 
         job_finished = False
@@ -110,9 +92,8 @@ class ExcitingXSSlurmCalculation(CalculationIO):
                 job_finished = job.run()
             time.sleep(1)
 
-    def submit_to_slurm(self) -> int:
+    def submit_to_slurm(self):
         """ Puts a calculation in the slurm queue.
-        :return: jobnumber in the queue
         """
         execution_list = ['sbatch', 'submit_run.sh']
         result = subprocess.run(execution_list,
@@ -121,26 +102,23 @@ class ExcitingXSSlurmCalculation(CalculationIO):
                                 cwd=self.directory)
         if not result.returncode == 0:
             assert RuntimeError(f"Couldn't put the calculation into queue: {result.stderr}")
-        return int(result.stdout.split()[3])
+        self.jobnumber = int(result.stdout.split()[3])
 
     def run(self) -> SubprocessRunResults:
         """
         Executes a calculation. Put in queue, wait for finish.
         """
         time_start = time.time()
-        jobnumber = self.submit_to_slurm()
-        self.wait_calculation_finish(jobnumber)
+        self.submit_to_slurm()
+        print(f'Put calculation into queue, JOBID={self.jobnumber}')
+        self.wait_calculation_finish()
         total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out
+        if self.status == 'TIMEOUT':
+            print("TIMEOUT reached!")
         returncode = 0
-        with open(self.directory / ('slurm-' + str(jobnumber) + '.out')) as fid:
+        with open(self.directory / ('slurm-' + str(self.jobnumber) + '.out')) as fid:
             stderr = fid.readlines()
         with open(self.directory / 'terminal.out') as fid:
             stdout = fid.readlines()
         return SubprocessRunResults(stdout, stderr, returncode, total_time)
-
-    def parse_output(self) -> Union[dict, FileNotFoundError]:
-        """
-        """
-        eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
-        return {**eps_singlet}
