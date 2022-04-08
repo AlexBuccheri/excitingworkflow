@@ -56,9 +56,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
                                                         ntasks_per_node=8,
                                                         cpus_per_task=4,
                                                         hint='nomultithread')
-        if slurm_directives is None:
-            slurm_directives = default_directives
-        self.slurm_directives = slurm_directives
+        self.slurm_directives = slurm_directives or default_directives
 
     def write_slurm_script(self):
         default_env_vars = OrderedDict([('EXE',
