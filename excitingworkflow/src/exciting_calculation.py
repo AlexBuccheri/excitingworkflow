@@ -67,6 +67,8 @@ class ExcitingCalculation(CalculationIO):
         self.path_to_species_files = None
         self.unique_species = None
         self.runner = runner
+        # ensure that the runner runs in the calculation directory:
+        self.runner.directory = self.directory
         self.structure = self.init_structure(structure)
         self.ground_state = self.init_ground_state(ground_state)
         self.optional_xml_elements = {}
