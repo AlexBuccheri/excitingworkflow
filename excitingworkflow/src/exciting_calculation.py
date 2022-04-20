@@ -50,8 +50,8 @@ class ExcitingCalculation(CalculationIO):
     def __init__(self,
                  name: str,
                  directory: CalculationIO.path_type,
-                 structure: Union[ExcitingStructure, CalculationIO.path_type],
-                 ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type],
+                 structure: Union[ExcitingStructure, CalculationIO.path_type, ExcitingCalculation],
+                 ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type, ExcitingCalculation],
                  runner: BinaryRunner,
                  xs: Optional[ExcitingXSInput] = None):
         """
@@ -75,24 +75,32 @@ class ExcitingCalculation(CalculationIO):
         if xs is not None:
             self.optional_xml_elements['xs'] = xs
 
-    def init_structure(self, structure: Union[ExcitingStructure, CalculationIO.path_type]) -> Union[ExcitingStructure,
-                                                                                                    ET.Element]:
+    def init_structure(self, structure: Union[ExcitingStructure, CalculationIO.path_type,
+                                              ExcitingCalculation]) -> Union[ExcitingStructure, ET.Element]:
         if isinstance(structure, ExcitingStructure):
             self.path_to_species_files = structure.species_path
             structure.species_path = './'
             self.unique_species = [x + '.xml' for x in structure.unique_species]
             return structure
+        if isinstance(structure, ExcitingCalculation):
+            self.path_to_species_files = structure.path_to_species_files
+            self.unique_species = structure.unique_species
+            return structure.structure
         if isinstance(structure, str):
             structure = pathlib.Path(structure)
         self.path_to_species_files = str(structure) + '/'
         self.unique_species = find_species_files(structure)
         return parse_element(structure, 'structure')
 
-    def init_ground_state(self, ground_state: Union[ExcitingGroundStateInput,
-                                                    CalculationIO.path_type]) -> Union[ExcitingGroundStateInput,
-                                                                                       ET.Element]:
+    def init_ground_state(self, ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type,
+                                                    ExcitingCalculation]) -> Union[ExcitingGroundStateInput,
+                                                                                   ET.Element]:
         if isinstance(ground_state, ExcitingGroundStateInput):
             return ground_state
+        if isinstance(ground_state, ExcitingCalculation):
+            shutil.copy(ground_state.directory / 'STATE.OUT', self.directory)
+            shutil.copy(ground_state.directory / 'EFERMI.OUT', self.directory)
+            return ground_state.ground_state
         if isinstance(ground_state, str):
             ground_state = pathlib.Path(ground_state)
         shutil.copy(ground_state / 'STATE.OUT', self.directory)
