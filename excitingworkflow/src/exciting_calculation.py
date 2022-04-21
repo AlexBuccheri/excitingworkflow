@@ -64,6 +64,8 @@ class ExcitingCalculation(CalculationIO):
         from where the necessary files STATE.OUT and EFERMI.OUT are copied
         :param xs: optional xml xs info
         """
+        if not os.path.isdir(self.directory):
+            os.mkdir(self.directory)
         super().__init__(name, directory)
         self.path_to_species_files = None
         self.unique_species = None
@@ -113,8 +115,6 @@ class ExcitingCalculation(CalculationIO):
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
-        if not os.path.isdir(self.directory):
-            os.mkdir(self.directory)
         for speci in self.unique_species:
             shutil.copy(self.path_to_species_files + speci, self.directory)
         self.write_input_xml()
