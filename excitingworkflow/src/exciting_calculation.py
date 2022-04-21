@@ -1,3 +1,4 @@
+import os.path
 import pathlib
 import shutil
 from typing import Union, Optional
@@ -112,6 +113,8 @@ class ExcitingCalculation(CalculationIO):
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
+        if not os.path.isdir(self.directory):
+            os.mkdir(self.directory)
         for speci in self.unique_species:
             shutil.copy(self.path_to_species_files + speci, self.directory)
         self.write_input_xml()
