@@ -1,4 +1,5 @@
-import os.path
+from __future__ import annotations
+
 import pathlib
 import shutil
 from typing import Union, Optional
