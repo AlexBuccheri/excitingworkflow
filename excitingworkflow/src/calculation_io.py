@@ -23,7 +23,7 @@ class CalculationIO(abc.ABC):
         if isinstance(directory, str):
             directory = pathlib.Path(directory)
         if not directory.is_dir():
-            raise NotADirectoryError(f'Not a directory: {directory}')
+            directory.mkdir()
         self.directory = directory
 
     @abc.abstractmethod

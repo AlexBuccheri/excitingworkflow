@@ -66,8 +66,6 @@ class ExcitingCalculation(CalculationIO):
         from where the necessary files STATE.OUT and EFERMI.OUT are copied
         :param xs: optional xml xs info
         """
-        if not os.path.isdir(directory):
-            os.mkdir(directory)
         super().__init__(name, directory)
         self.path_to_species_files = None
         self.unique_species = None
