@@ -145,7 +145,7 @@ class ExcitingCalculation(CalculationIO):
             totengy = {'TOTENERGY': np.genfromtxt(self.directory / 'TOTENERGY.OUT')}
             info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
             return {**info_out, **totengy}
-        if self.optional_xml_elements['xs'].BSE['bsetype'] == 'singlet':
+        if self.optional_xml_elements['xs'].BSE.attributes['bsetype'] == 'singlet':
             eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                        "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
         elif self.optional_xml_elements['xs'].BSE.attributes['bsetype'] == 'IP':
