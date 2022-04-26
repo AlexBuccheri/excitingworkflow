@@ -148,7 +148,7 @@ class ExcitingCalculation(CalculationIO):
         if self.optional_xml_elements['xs'].BSE['bsetype'] == 'singlet':
             eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                        "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
-        elif self.optional_xml_elements['xs'].BSE['bsetype'] == 'IP':
+        elif self.optional_xml_elements['xs'].BSE.attributes['bsetype'] == 'IP':
             eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                        "EPSILON_BSE-IP_SCR-full_OC11.OUT")
         else:
