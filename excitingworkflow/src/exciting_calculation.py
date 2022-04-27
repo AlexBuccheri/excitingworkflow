@@ -103,6 +103,7 @@ class ExcitingCalculation(CalculationIO):
         if isinstance(ground_state, ExcitingCalculation):
             shutil.copy(ground_state.directory / 'STATE.OUT', self.directory)
             shutil.copy(ground_state.directory / 'EFERMI.OUT', self.directory)
+            ground_state.ground_state.attributes['do'] = 'skip'
             return ground_state.ground_state
         if isinstance(ground_state, str):
             ground_state = pathlib.Path(ground_state)
