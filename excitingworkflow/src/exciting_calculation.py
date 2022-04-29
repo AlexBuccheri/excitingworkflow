@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import os
 import pathlib
 import shutil
 from typing import Union, Optional
-
-import xml.etree.ElementTree as ET
 
 import numpy as np
 from excitingtools.input.input_xml import exciting_input_xml_str
@@ -14,35 +11,8 @@ from excitingtools.parser import groundstate_parser, bse_parser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
+from excitingtools.parser.input_parser import parse_groundstate, parse_structure
 from excitingworkflow.src.calculation_io import CalculationIO
-
-
-def get_element_from_root(directory: pathlib.Path, element_tag: str) -> ET.Element:
-    tree = ET.parse(directory / "input.xml")
-    root = tree.getroot()
-    element = None
-    for element in root:
-        if element.tag == element_tag:
-            break
-    return element
-
-
-def parse_element(path_to_gs_calculation: pathlib.Path, element_tag: str) -> ET.Element:
-    element = get_element_from_root(path_to_gs_calculation, element_tag)
-    if element is None:
-        raise ValueError('Given element_tag doesnt exist in the input.xml.')
-    if element_tag == 'groundstate':
-        element.set('do', 'skip')
-    return element
-
-
-def find_species_files(path_to_gs_calculation: pathlib.Path) -> list:
-    structure_tree = get_element_from_root(path_to_gs_calculation, 'structure')
-    unique_elements = set()
-    for element in structure_tree:
-        if element.tag == 'species':
-            unique_elements.add(element.get('speciesfile'))
-    return sorted(unique_elements)
 
 
 class ExcitingCalculation(CalculationIO):
@@ -54,21 +24,26 @@ class ExcitingCalculation(CalculationIO):
                  name: str,
                  directory: CalculationIO.path_type,
                  structure: Union[ExcitingStructure, CalculationIO.path_type, ExcitingCalculation],
+                 path_to_species_files: Union[CalculationIO.path_type, ExcitingCalculation],
                  ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type, ExcitingCalculation],
                  runner: BinaryRunner,
                  xs: Optional[ExcitingXSInput] = None):
         """
         :param name: title of the calculation
         :param directory: where to run the calculation
-        :param runner: Runner to run exciting
-        :param structure: Object containing the xml structure info
+        :param structure: Object containing the xml structure info OR path to already performed gs calculation
+        from where the structure part is taken OR old ExcitingCalculation object from which the structure part is taken
+        :param path_to_species_files: where to find the species files OR old ExcitingCalculation object from
+        which the path is taken
         :param ground_state: Object containing the xml groundstate info OR path to already performed gs calculation
-        from where the necessary files STATE.OUT and EFERMI.OUT are copied
+        from where the necessary files STATE.OUT and EFERMI.OUT are copied OR old ExcitingCalculation object from
+        which the ground_state part is taken
+        :param runner: Runner to run exciting
         :param xs: optional xml xs info
         """
         super().__init__(name, directory)
-        self.path_to_species_files = None
-        self.unique_species = None
+        self.path_to_species_files = self.init_path_to_species_files(path_to_species_files)
+        self.species_files = None
         self.runner = runner
         # ensure that the runner runs in the calculation directory:
         self.runner.directory = self.directory
@@ -78,46 +53,47 @@ class ExcitingCalculation(CalculationIO):
         if xs is not None:
             self.optional_xml_elements['xs'] = xs
 
+    @staticmethod
+    def init_path_to_species_files(path_to_species_files: Union[CalculationIO.path_type,
+                                                                ExcitingCalculation]) -> pathlib.Path:
+        if isinstance(path_to_species_files, ExcitingCalculation):
+            return path_to_species_files.path_to_species_files
+        if isinstance(path_to_species_files, str):
+            return pathlib.Path(path_to_species_files)
+        # don't know why PyCharm is complaining, maybe because of the future import?
+        return path_to_species_files
+
     def init_structure(self, structure: Union[ExcitingStructure, CalculationIO.path_type,
-                                              ExcitingCalculation]) -> Union[ExcitingStructure, ET.Element]:
-        if isinstance(structure, ExcitingStructure):
-            self.path_to_species_files = structure.species_path
-            structure.species_path = './'
-            self.unique_species = [x + '.xml' for x in structure.unique_species]
-            return structure
+                                              ExcitingCalculation]) -> ExcitingStructure:
         if isinstance(structure, ExcitingCalculation):
-            self.path_to_species_files = structure.path_to_species_files
-            self.unique_species = structure.unique_species
+            self.species_files = structure.species_files
             return structure.structure
-        if isinstance(structure, str):
-            structure = pathlib.Path(structure)
-        self.path_to_species_files = str(structure) + '/'
-        self.unique_species = find_species_files(structure)
-        return parse_element(structure, 'structure')
+        if isinstance(structure, CalculationIO.path_type):
+            structure = parse_structure(str(structure) + '/input.xml')
+        self.species_files = [x + '.xml' for x in structure.unique_species]
+        return structure
 
     def init_ground_state(self, ground_state: Union[ExcitingGroundStateInput, CalculationIO.path_type,
-                                                    ExcitingCalculation]) -> Union[ExcitingGroundStateInput,
-                                                                                   ET.Element]:
-        if isinstance(ground_state, ExcitingGroundStateInput):
-            return ground_state
+                                                    ExcitingCalculation]) -> ExcitingGroundStateInput:
         if isinstance(ground_state, ExcitingCalculation):
             shutil.copy(ground_state.directory / 'STATE.OUT', self.directory)
             shutil.copy(ground_state.directory / 'EFERMI.OUT', self.directory)
             ground_state.ground_state.attributes['do'] = 'skip'
             return ground_state.ground_state
-        if isinstance(ground_state, str):
-            ground_state = pathlib.Path(ground_state)
-        shutil.copy(ground_state / 'STATE.OUT', self.directory)
-        shutil.copy(ground_state / 'EFERMI.OUT', self.directory)
-        return parse_element(ground_state, 'groundstate')
+        if isinstance(ground_state, CalculationIO.path_type):
+            ground_state = str(ground_state)
+            shutil.copy(ground_state + '/STATE.OUT', self.directory)
+            shutil.copy(ground_state + '/EFERMI.OUT', self.directory)
+            ground_state = parse_groundstate(ground_state + '/input.xml')
+        return ground_state
 
     def write_inputs(self):
         """
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
-        for speci in self.unique_species:
-            shutil.copy(self.path_to_species_files + speci, self.directory)
+        for species_file in self.species_files:
+            shutil.copy(self.path_to_species_files / species_file, self.directory)
         self.write_input_xml()
         self.write_slurm_script()
 
