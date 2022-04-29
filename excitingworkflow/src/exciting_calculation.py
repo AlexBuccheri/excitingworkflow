@@ -49,9 +49,7 @@ class ExcitingCalculation(CalculationIO):
         self.runner.directory = self.directory
         self.structure = self.init_structure(structure)
         self.ground_state = self.init_ground_state(ground_state)
-        self.optional_xml_elements = {}
-        if xs is not None:
-            self.optional_xml_elements['xs'] = xs
+        self.xs = xs
 
     @staticmethod
     def init_path_to_species_files(path_to_species_files: Union[CalculationIO.path_type,
@@ -102,8 +100,7 @@ class ExcitingCalculation(CalculationIO):
         pass
 
     def write_input_xml(self):
-        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name,
-                                              **self.optional_xml_elements)
+        xml_tree_str = exciting_input_xml_str(self.structure, self.ground_state, title=self.name, xs=self.xs)
 
         with open(self.directory / "input.xml", "w") as fid:
             fid.write(xml_tree_str)
@@ -119,14 +116,14 @@ class ExcitingCalculation(CalculationIO):
         """
         TODO(Fab): Rethink this, what is needed
         """
-        if self.optional_xml_elements == {}:
+        if self.xs is None:
             totengy = {'TOTENERGY': np.genfromtxt(self.directory / 'TOTENERGY.OUT')}
             info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
             return {**info_out, **totengy}
-        if self.optional_xml_elements['xs'].BSE.attributes['bsetype'] == 'singlet':
+        if self.xs.BSE.attributes['bsetype'] == 'singlet':
             eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                        "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
-        elif self.optional_xml_elements['xs'].BSE.attributes['bsetype'] == 'IP':
+        elif self.xs.BSE.attributes['bsetype'] == 'IP':
             eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
                                                        "EPSILON_BSE-IP_SCR-full_OC11.OUT")
         else:

@@ -33,6 +33,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
                  name: str,
                  directory: ExcitingCalculation.path_type,
                  structure: Union[ExcitingStructure, ExcitingCalculation.path_type],
+                 path_to_species_files: Union[ExcitingCalculation.path_type, ExcitingCalculation],
                  ground_state: Union[ExcitingGroundStateInput, ExcitingCalculation.path_type],
                  xs: Optional[ExcitingXSInput] = None,
                  slurm_directives: Optional[OrderedDict] = None):
@@ -40,12 +41,15 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
         :param name: title of the calculation
         :param directory: where to run the calculation
         :param structure: Object containing the xml structure info
+        :param path_to_species_files: where to find the species files OR old ExcitingCalculation object from
+        which the path is taken
         :param ground_state: Object containing the xml groundstate info OR path to already performed gs calculation
         from where the necessary files STATE.OUT and EFERMI.OUT are copied
         :param xs: optional xml xs info
         :param slurm_directives: slurm infos to specify how the calculation should be run
         """
-        super().__init__(name, directory, structure, ground_state, BinaryRunner('', '', 1, 1), xs)
+        super().__init__(name, directory, structure, path_to_species_files, ground_state, BinaryRunner('', '', 1, 1),
+                         xs)
         self.jobnumber = None
         self.status = None
         default_directives = slurm.set_slurm_directives(job_name=self.name,
