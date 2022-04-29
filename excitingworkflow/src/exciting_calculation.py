@@ -85,6 +85,7 @@ class ExcitingCalculation(CalculationIO):
             shutil.copy(ground_state + '/STATE.OUT', self.directory)
             shutil.copy(ground_state + '/EFERMI.OUT', self.directory)
             ground_state = parse_groundstate(ground_state + '/input.xml')
+            ground_state.attributes['do'] = 'skip'
         return ground_state
 
     def write_inputs(self):
