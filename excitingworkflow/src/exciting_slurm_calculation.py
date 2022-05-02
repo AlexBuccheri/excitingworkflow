@@ -68,8 +68,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
                                         ('OUT', 'terminal.out')])
         default_module_envs = ['intel-oneapi/2021.4.0']
 
-        set_run_script = slurm.set_slurm_script
-        run_script = set_run_script(self.slurm_directives, default_env_vars, default_module_envs)
+        run_script = slurm.set_slurm_script(self.slurm_directives, default_env_vars, default_module_envs)
         with open(self.directory / "submit_run.sh", "w") as fid:
             fid.write(run_script)
 
@@ -79,7 +78,7 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
         self.status = find_job_state(str(result.stdout))
-        return self.status in ['COMPLETED', 'TIMEOUT']
+        return self.status in ['COMPLETED', 'TIMEOUT', 'FAILED']
 
     def wait_calculation_finish(self):
         schedule.clear()
@@ -116,9 +115,11 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
         self.wait_calculation_finish()
         total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out
+        returncode = 0
         if self.status == 'TIMEOUT':
             print("TIMEOUT reached!")
-        returncode = 0
+        elif self.status == 'FAILED':
+            returncode = 1
         with open(self.directory / ('slurm-' + str(self.jobnumber) + '.out')) as fid:
             stderr = fid.readlines()
         with open(self.directory / 'terminal.out') as fid:
