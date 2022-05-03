@@ -105,15 +105,23 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
             assert RuntimeError(f"Couldn't put the calculation into queue: {result.stderr}")
         self.jobnumber = int(result.stdout.split()[3])
 
-    def run(self) -> SubprocessRunResults:
+    def run(self, wait_for_finish: bool = True) -> Union[SubprocessRunResults, None]:
         """
         Executes a calculation. Put in queue, wait for finish.
         """
         time_start = time.time()
         self.submit_to_slurm()
         print(f'Put calculation into queue, JOBID={self.jobnumber}')
+        if not wait_for_finish:
+            return
         self.wait_calculation_finish()
-        total_time = time.time() - time_start
+        return self.get_runresults(time_start)
+
+    def get_runresults(self, time_start: float = None) -> SubprocessRunResults:
+        if time_start is None:
+            total_time = 0
+        else:
+            total_time = time.time() - time_start
         # TODO(Fab): Add handling for errors and time out
         returncode = 0
         if self.status == 'TIMEOUT':
