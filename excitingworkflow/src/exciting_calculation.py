@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 from typing import Union, Optional
@@ -8,6 +9,7 @@ import numpy as np
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.input.xs import ExcitingXSInput
 from excitingtools.parser import groundstate_parser, bse_parser
+from excitingtools.parser.parserChooser import parser_chooser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
@@ -112,20 +114,32 @@ class ExcitingCalculation(CalculationIO):
         """
         return self.runner.run()
 
-    def parse_output(self) -> Union[dict, FileNotFoundError]:
+    def parse_output(self, groundstate_files: list = None) -> Union[dict, FileNotFoundError]:
         """
         TODO(Fab): Rethink this, what is needed
         """
-        if self.xs is None:
-            totengy = {'TOTENERGY': np.genfromtxt(self.directory / 'TOTENERGY.OUT')}
-            info_out: dict = groundstate_parser.parse_info_out(self.directory / "INFO.OUT")
-            return {**info_out, **totengy}
-        if self.xs.BSE.attributes['bsetype'] == 'singlet':
-            eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
-                                                       "EPSILON_BSE-singlet-TDA-BAR_SCR-full_OC11.OUT")
-        elif self.xs.BSE.attributes['bsetype'] == 'IP':
-            eps_singlet = bse_parser.parse_EPSILON_NAR(self.directory / "EPSILON" /
-                                                       "EPSILON_BSE-IP_SCR-full_OC11.OUT")
-        else:
-            return {}
-        return {**eps_singlet}
+        results = {}
+        if self.ground_state.attributes['do'] != 'skip':
+            if groundstate_files is None:
+                groundstate_files = ['TOTENERGY.OUT', 'INFO.OUT', 'info.xml', 'atoms.xml', 'evalcore.xml', 'eigval.xml',
+                                     'geometry.xml']
+            for file in groundstate_files:
+                if file == 'TOTENERGY.OUT':
+                    results.update({'TOTENERGY.OUT': np.genfromtxt(self.directory / 'TOTENERGY.OUT')})
+                else:
+                    results.update({file: parser_chooser(str(self.directory / file))})
+
+        if self.xs is not None:
+            if self.xs.xs['xstype'] == 'BSE':
+                subdirs = ['LOSS', 'EPSILON', 'EXCITON']
+                for subdir in subdirs:
+                    files = os.listdir(self.directory / subdir)
+                    for file in files:
+                        try:
+                            results.update({file: parser_chooser(str(self.directory / subdir / file))})
+                        except SystemExit:
+                            print(f'WARNING: file {file} has not been parsed!')
+            else:
+                print('Parsing from other xs types than BSE not yet implemented!')
+
+        return results
