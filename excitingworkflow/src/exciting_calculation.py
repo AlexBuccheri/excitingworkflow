@@ -8,12 +8,13 @@ from typing import Union, Optional
 import numpy as np
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.input.xs import ExcitingXSInput
+from excitingtools.parser import groundstate_parser, bse_parser
 from excitingtools.parser.parserChooser import parser_chooser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingtools.parser.input_parser import parse_groundstate_to_object, parse_structure_to_object
-from excitingworkflow.src.base.calculation_io import CalculationIO
+from excitingtools.parser.input_parser import parse_groundstate, parse_structure
+from excitingworkflow.src.calculation_io import CalculationIO
 
 
 class ExcitingCalculation(CalculationIO):
@@ -68,7 +69,7 @@ class ExcitingCalculation(CalculationIO):
             self.species_files = structure.species_files
             return structure.structure
         if isinstance(structure, CalculationIO.path_type):
-            structure = parse_structure_to_object(str(structure) + '/input.xml')
+            structure = parse_structure(str(structure) + '/input.xml')
         self.species_files = [x + '.xml' for x in structure.unique_species]
         return structure
 
@@ -77,14 +78,14 @@ class ExcitingCalculation(CalculationIO):
         if isinstance(ground_state, ExcitingCalculation):
             shutil.copy(ground_state.directory / 'STATE.OUT', self.directory)
             shutil.copy(ground_state.directory / 'EFERMI.OUT', self.directory)
-            ground_state.ground_state.do = 'skip'
+            ground_state.ground_state.attributes['do'] = 'skip'
             return ground_state.ground_state
         if isinstance(ground_state, CalculationIO.path_type):
             ground_state = str(ground_state)
             shutil.copy(ground_state + '/STATE.OUT', self.directory)
             shutil.copy(ground_state + '/EFERMI.OUT', self.directory)
-            ground_state = parse_groundstate_to_object(ground_state + '/input.xml')
-            ground_state.do = 'skip'
+            ground_state = parse_groundstate(ground_state + '/input.xml')
+            ground_state.attributes['do'] = 'skip'
         return ground_state
 
     def write_inputs(self):
@@ -92,8 +93,6 @@ class ExcitingCalculation(CalculationIO):
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
-        if not self.directory.is_dir():
-            self.directory.mkdir()
         for species_file in self.species_files:
             shutil.copy(self.path_to_species_files / species_file, self.directory)
         self.write_input_xml()
@@ -117,14 +116,10 @@ class ExcitingCalculation(CalculationIO):
 
     def parse_output(self, groundstate_files: list = None) -> Union[dict, FileNotFoundError]:
         """
-        Parse output from an exciting calculation.
-        If groundstate calculation was performed (meaning the 'do' attribute is not 'skip', parse the relevant
-        groundstate output files and put them with filename as key in dictionary.
-        If xs calculation was performed (meaning self.xs ist not None), look for xstype. For BSE calculations parse
-        the files in LOSS, EPSILON and EXCITON folders. For other xstypes nothing yet implemented.
+        TODO(Fab): Rethink this, what is needed
         """
         results = {}
-        if self.ground_state.do != 'skip':
+        if self.ground_state.attributes['do'] != 'skip':
             if groundstate_files is None:
                 groundstate_files = ['TOTENERGY.OUT', 'INFO.OUT', 'info.xml', 'atoms.xml', 'evalcore.xml', 'eigval.xml',
                                      'geometry.xml']
@@ -135,7 +130,7 @@ class ExcitingCalculation(CalculationIO):
                     results.update({file: parser_chooser(str(self.directory / file))})
 
         if self.xs is not None:
-            if self.xs.xs.xstype == 'BSE':
+            if self.xs.xs['xstype'] == 'BSE':
                 subdirs = ['LOSS', 'EPSILON', 'EXCITON']
                 for subdir in subdirs:
                     files = os.listdir(self.directory / subdir)
