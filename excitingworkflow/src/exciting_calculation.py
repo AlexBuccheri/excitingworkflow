@@ -8,7 +8,6 @@ from typing import Union, Optional
 import numpy as np
 from excitingtools.input.input_xml import exciting_input_xml_str
 from excitingtools.input.xs import ExcitingXSInput
-from excitingtools.parser import groundstate_parser, bse_parser
 from excitingtools.parser.parserChooser import parser_chooser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
@@ -116,7 +115,11 @@ class ExcitingCalculation(CalculationIO):
 
     def parse_output(self, groundstate_files: list = None) -> Union[dict, FileNotFoundError]:
         """
-        TODO(Fab): Rethink this, what is needed
+        Parse output from an exciting calculation.
+        If groundstate calculation was performed (meaning the 'do' attribute is not 'skip', parse the relevant
+        groundstate output files and put them with filename as key in dictionary.
+        If xs calculation was performed (meaning self.xs ist not None), look for xstype. For BSE calculations parse
+        the files in LOSS, EPSILON and EXCITON folders. For other xstypes nothing yet implemented.
         """
         results = {}
         if self.ground_state.attributes['do'] != 'skip':
