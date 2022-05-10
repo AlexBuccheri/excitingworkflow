@@ -1,38 +1,69 @@
 """ Generic convergence workflows.
 """
-from typing import Callable, Union
+from typing import Callable, Union, List
 
-from excitingtools.runner import SubprocessRunResults
-
-from excitingworkflow.src.base.calculation_io import CalculationIO
+from excitingworkflow.src.base.calculation_io import CalculationIO, CalculationError
 from excitingworkflow.src.base.convergence_criteria import ConvergenceCriteria
 
 
 def convergence_step(value,
                      calculation: CalculationIO,
-                     set_value_in_input: Callable) -> Union[dict, SubprocessRunResults]:
+                     set_value_in_input: Callable) -> Union[dict, CalculationError]:
     """ Perform a single calculation as part of a convergence test.
 
-    :param value: Input value be varied to achieve convergence.
+    One notes that the specifics of `set_value_in_input` are left to the developer.
+
+    Setting a new input value (which should be varied to converge some output quantity) could be achieved by:
+     1. Copying a calculation object, changing the value in the object and writing the new data to file.
+     2. Simply modifying an existing file already present.
+
+    Note, the returned dictionary MUST ONLY contain the relevant data.
+    The CalculationIO class method `parse_output` determines exactly how this is constructed.
+
+    :param value: Input value to be varied to achieve convergence.
     :param calculation: calculation instance, with methods defined by CalculationIO
     :param set_value_in_input: Function defining how to change the input value.
-    This could be achieved by copying calculation, changing value, then write to file OR
-    it could be modifying an existing file.
-    :return: Dictionary containing the output value used to evaluate when convergence w.r.t. value.
-    Note, this can contain other data. The ConvergenceCriteria class determines how this is evaluated.
-    If the calculation run fails, a SubprocessRunResults is returned instead.
+
+    :return: Dictionary containing the input value set by this routine, and the output value
+    with which convergence is measured. If the calculation run fails, a SubprocessRunResults
+    is returned instead.
     """
     set_value_in_input(value, calculation)
     subprocess_result = calculation.run()
+
     if subprocess_result.success:
         return calculation.parse_output()
-    return subprocess_result
+    else:
+        return CalculationError(subprocess_result)
+
+
+class ConvergenceResult:
+    """ Class to hold results of a convergence step.
+    """
+    def __init__(self, input_value, result, converged: bool, early_exit: bool):
+        """
+        :param input_value: Input value that should converge result.
+        :param result: Quantity that is being converged.
+        :param: converged: Is the result converged w.r.t. input_value.
+        :param early_exit: Exit before the max input value, len(input_value), is reached.
+        """
+        self.input_value = input_value
+        self.result = result
+        self.converged = converged
+        self.early_exit = early_exit
+
+
+# A list of convergence results
+ConvergenceResults = List[ConvergenceResult]
 
 
 def converge(calculation: CalculationIO,
              convergence: ConvergenceCriteria,
-             set_value_in_input: Callable[[any, CalculationIO], Union[any, None]]) -> List[tuple]:
+             set_value_in_input: Callable[[any, CalculationIO], Union[any, None]]) -> ConvergenceResults:
     """ Converge a calculation output with respect to an input parameter.
+
+    This routine assumes a calculation is performed via IO. That is, data is written to file,
+    the calculation is executed, and data is written to file, which must then be parsed.
 
     calculation defines the methods to:
         Write all inputs required,
@@ -45,12 +76,10 @@ def converge(calculation: CalculationIO,
         * The criterion/criteria with which to evaluate convergence.
 
     The function `set_value_in_input`:
-        Function defining how to change the input value for per convergence calculation.
+        Function defining how to change the input value for per calculation, to achieve convergence.
         This is not a method of Calculation because it does not manage the state of
         a calculation (indeed, it could modify an input file already written), nor
         is it a method of Convergence.
-
-    Note, this is entirely analogous to writing templated code in C++
 
     :param calculation: Calculation instance.
     :param convergence: Convergence parameters and criteria.
@@ -64,16 +93,16 @@ def converge(calculation: CalculationIO,
 
     # Initialise results by running the first value
     first_value = convergence.input[0]
-    result = convergence_step(first_value, calculation, set_value_in_input)
-    results = [(first_value, result, False, False)]
+    output = convergence_step(first_value, calculation, set_value_in_input)
+    results = [ConvergenceResult(first_value, output, converged=False, early_exit=True)]
 
-    if isinstance(result, SubprocessRunResults):
+    if isinstance(output, CalculationError):
         return results
 
     for value in convergence.input[1:]:
-        result = convergence_step(value, calculation, set_value_in_input)
-        converged, early_exit = convergence.evaluate(result, results[-1][1])
-        results.append((value, result, converged, early_exit))
+        output = convergence_step(value, calculation, set_value_in_input)
+        converged, early_exit = convergence.evaluate(output, results[-1].result)
+        results.append(ConvergenceResult(value, output, converged, early_exit))
         if converged or early_exit:
             return results
 
