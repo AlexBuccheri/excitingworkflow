@@ -7,6 +7,8 @@ from typing import Tuple, Callable
 
 from excitingtools.runner import SubprocessRunResults
 
+from excitingworkflow.src.base.calculation_io import CalculationError
+
 
 class ConvergenceCriteria(abc.ABC):
     """Abstract base class used to define and check convergence in a workflow.
@@ -37,9 +39,8 @@ class ConvergenceCriteria(abc.ABC):
         """
         def func_with_target_check(self, current: dict, prior: dict):
 
-            # Only expect for a failed run
-            if isinstance(current, SubprocessRunResults):
-                converged, early_exit = current.success, True
+            if isinstance(current, CalculationError):
+                converged, early_exit = False, True
                 return converged, early_exit
 
             set_current = set(current)
