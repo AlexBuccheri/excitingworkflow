@@ -1,62 +1,24 @@
+""" Abstract base class to define a converence criterion or criteria
+for a convergence workflow.
+"""
 import abc
-import pathlib
 from collections.abc import Iterable
-from typing import Union, Tuple, Callable
+from typing import Tuple, Callable
+
 from excitingtools.runner import SubprocessRunResults
 
 
-class CalculationIO(abc.ABC):
-    """Abstract base class for a calculation that is performed
-    by writing input file/s and parsing the result from a file.
-
-    An IO calculation is expected to have:
-        * A name,
-        * A working (run) directory,
-        * A method to write all input files required to run the calculation,
-        * A method to run the calculation,
-        * A parser for the outputs of interest.
-    """
-    path_type = Union[str, pathlib.Path]
-
-    def __init__(self, name: str, directory: path_type):
-        self.name = name
-        if isinstance(directory, str):
-            directory = pathlib.Path(directory)
-        if not directory.is_dir():
-            directory.mkdir()
-        self.directory = directory
-
-    @abc.abstractmethod
-    def write_inputs(self) -> None:
-        """ Write all input files required for calculation.
-        """
-        ...
-
-    @abc.abstractmethod
-    def run(self) -> SubprocessRunResults:
-        """ Run the calculation.
-        :return Subprocess result instance.
-        """
-
-    @abc.abstractmethod
-    def parse_output(self, *args) -> Union[dict, FileNotFoundError]:
-        """ Parse one or more output files for calculation.
-        :return Dictionary of results.
-        """
-        ...
-
-
 class ConvergenceCriteria(abc.ABC):
-    """Abstract base class for performing a set of convergence calculations.
+    """Abstract base class used to define and check convergence in a workflow.
 
     Attributes correspond to input value to vary, and target value to check convergence against.
     Method should supply a convergence criterion or criteria w.r.t. the target value/s.
     """
     def __init__(self, input, criteria: dict):
-        """ Initialise an instance of Convergence.
+        """ Initialise an instance.
 
         :param input: A range of input values. Can be in any format, as long it's iterable.
-        :param criteria: Dictionary of convergence criteria. {key:value} = {target: criterion}
+        :param criteria: Dictionary of convergence criteria, {target: criterion}
         """
         self.input = input
         self.criteria = criteria
@@ -66,7 +28,9 @@ class ConvergenceCriteria(abc.ABC):
             raise ValueError('input must have a length > 1')
 
     def check_target(self, func: Callable):
-        """ Provide argument checking.
+        """ Provide argument-checking.
+
+        To be used as a decorator. See `evaluate` documentation.
 
         :param func: evaluate method.
         :return: Modified evaluate method.
@@ -98,18 +62,19 @@ class ConvergenceCriteria(abc.ABC):
         """ Evaluate a convergence criterion for each target.
 
         Decorators cannot be applied to methods decorated with abstractmethod.
-        As such, sub-class implementations of `evaluate` should be defined as:
+        As such, child implementations of `evaluate` should be defined as:
 
         @ConvergenceCriteria.check_target
         def evaluate(self, current: dict, prior: dict) -> Tuple[bool, bool]:
             # Implementation here
 
-        to get use the value-checking. Alternative would be to evaluate in ConvergenceCriteria
-        using the definition of the decorator (i.e. the value-checking) then inherit it in
-        sub-classes that overwrite the method:
+        to get use the value-checking. An alternative would be to perform value-checking in
+        the `evaluate` method of the parent class (so it's not abstract) and inherit it in the
+        child method of the same name:
 
         def evaluate(self, a, b):
             super.evaluate(a, b)
+            # Specific implementation
 
         :param current: Dictionary containing current result/s
         :param prior: Dictionary containing prior result/s
