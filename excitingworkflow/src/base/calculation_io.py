@@ -46,3 +46,13 @@ class CalculationIO(abc.ABC):
         :return Dictionary of results.
         """
         ...
+
+
+class CalculationError:
+    """ Typed Error.
+    """
+    def __init__(self, info):
+        """
+        :param info: Any info associated with the error
+        """
+        self.info = info
