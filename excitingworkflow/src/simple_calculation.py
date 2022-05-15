@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy as np
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
-from excitingworkflow.src.calculation_io import CalculationIO
+from excitingworkflow.src.base.calculation_io import CalculationIO
 
 
 class SimpleCalculation(CalculationIO):

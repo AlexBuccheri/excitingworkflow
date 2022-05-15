@@ -4,7 +4,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.stats import spearmanr
 
-from excitingworkflow.src.calculation_io import ConvergenceCriteria
+from excitingworkflow.src.base.convergence_criteria import ConvergenceCriteria
 try:
     import simmeasxas
 except ImportError:
