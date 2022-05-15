@@ -12,7 +12,7 @@ from excitingtools.parser.parserChooser import parser_chooser
 from excitingtools.runner import SubprocessRunResults, BinaryRunner
 from excitingtools.input.ground_state import ExcitingGroundStateInput
 from excitingtools.input.structure import ExcitingStructure
-from excitingtools.parser.input_parser import parse_groundstate, parse_structure
+from excitingtools.parser.input_parser import parse_groundstate_to_object, parse_structure_to_object
 from excitingworkflow.src.base.calculation_io import CalculationIO
 
 
@@ -68,7 +68,7 @@ class ExcitingCalculation(CalculationIO):
             self.species_files = structure.species_files
             return structure.structure
         if isinstance(structure, CalculationIO.path_type):
-            structure = parse_structure(str(structure) + '/input.xml')
+            structure = parse_structure_to_object(str(structure) + '/input.xml')
         self.species_files = [x + '.xml' for x in structure.unique_species]
         return structure
 
@@ -77,14 +77,14 @@ class ExcitingCalculation(CalculationIO):
         if isinstance(ground_state, ExcitingCalculation):
             shutil.copy(ground_state.directory / 'STATE.OUT', self.directory)
             shutil.copy(ground_state.directory / 'EFERMI.OUT', self.directory)
-            ground_state.ground_state.attributes['do'] = 'skip'
+            ground_state.ground_state.do = 'skip'
             return ground_state.ground_state
         if isinstance(ground_state, CalculationIO.path_type):
             ground_state = str(ground_state)
             shutil.copy(ground_state + '/STATE.OUT', self.directory)
             shutil.copy(ground_state + '/EFERMI.OUT', self.directory)
-            ground_state = parse_groundstate(ground_state + '/input.xml')
-            ground_state.attributes['do'] = 'skip'
+            ground_state = parse_groundstate_to_object(ground_state + '/input.xml')
+            ground_state.do = 'skip'
         return ground_state
 
     def write_inputs(self):
@@ -122,7 +122,7 @@ class ExcitingCalculation(CalculationIO):
         the files in LOSS, EPSILON and EXCITON folders. For other xstypes nothing yet implemented.
         """
         results = {}
-        if self.ground_state.attributes['do'] != 'skip':
+        if self.ground_state.do != 'skip':
             if groundstate_files is None:
                 groundstate_files = ['TOTENERGY.OUT', 'INFO.OUT', 'info.xml', 'atoms.xml', 'evalcore.xml', 'eigval.xml',
                                      'geometry.xml']
@@ -133,7 +133,7 @@ class ExcitingCalculation(CalculationIO):
                     results.update({file: parser_chooser(str(self.directory / file))})
 
         if self.xs is not None:
-            if self.xs.xs['xstype'] == 'BSE':
+            if self.xs.xs.xstype == 'BSE':
                 subdirs = ['LOSS', 'EPSILON', 'EXCITON']
                 for subdir in subdirs:
                     files = os.listdir(self.directory / subdir)
