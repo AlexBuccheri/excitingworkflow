@@ -92,6 +92,8 @@ class ExcitingCalculation(CalculationIO):
         Force the species files to be in the run directory.
         TODO: Allow different names for species files.
         """
+        if not self.directory.is_dir():
+            self.directory.mkdir()
         for species_file in self.species_files:
             shutil.copy(self.path_to_species_files / species_file, self.directory)
         self.write_input_xml()
