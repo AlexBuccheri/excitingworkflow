@@ -118,6 +118,8 @@ class ExcitingSlurmCalculation(ExcitingCalculation):
         return self.get_runresults(time_start)
 
     def get_runresults(self, time_start: float = None) -> SubprocessRunResults:
+        if not self.is_exited():
+            raise RuntimeError("Calculation isn't finished yet!")
         if time_start is None:
             total_time = 0
         else:
