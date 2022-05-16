@@ -77,7 +77,7 @@ def parse_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quant
 
 
 def plot_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quantity: str = 'EPSILON',
-                 calc_type: str = None, polarization: str = '11'):
+                 calc_type: str = 'singlet', polarization: str = '11'):
     """
     Generate plot of spectra for BSE calculations.
     :param calculation_list: List of directories as strings containing the calculations. Or better
