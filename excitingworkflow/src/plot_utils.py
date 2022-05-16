@@ -1,7 +1,7 @@
 """
 Some functions for nicer convergence plots.
 """
-from typing import Union, List
+from typing import Union, List, Tuple
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -77,7 +77,7 @@ def parse_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quant
 
 
 def plot_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quantity: str = 'EPSILON',
-                 calc_type: str = 'singlet', polarization: str = '11'):
+                 calc_type: str = 'singlet', polarization: str = '11', x_cutoff: Tuple = None):
     """
     Generate plot of spectra for BSE calculations.
     :param calculation_list: List of directories as strings containing the calculations. Or better
@@ -86,9 +86,11 @@ def plot_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quanti
     :param calc_type: choose from 'singlet', 'IP', 'RPA', automatically taken from ExcitingCalculation if
     nothing else is specified
     :param polarization: polarization direction, either '11', '22' or '33'
+    :param x_cutoff: defines which range of points will be plotted from the spectra
     """
     figcolor, dpi = convergence_plot_setup()
     spectra, label_list = parse_spectra(calculation_list, quantity, calc_type, polarization)
+    x_cutoff = x_cutoff or (0, np.shape(spectra)[2])
 
     fig = plt.figure(figsize=(20, 15), dpi=dpi, facecolor=figcolor)
 
@@ -97,7 +99,7 @@ def plot_spectra(calculation_list: list[Union[str, ExcitingCalculation]], quanti
 
     ax.set_xlabel('Omega [eV]')
     for i, label in enumerate(label_list):
-        ax.plot(spectra[i, 0, :], spectra[i, 1, :], label=label)
+        ax.plot(spectra[i, 0, x_cutoff[0]:x_cutoff[1]], spectra[i, 1, x_cutoff[0]:x_cutoff[1]], label=label)
     plt.legend()
 
 
