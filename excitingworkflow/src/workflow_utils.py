@@ -1,5 +1,5 @@
 """
-Some help functions.
+Some help functions and more.
 """
 from typing import Union
 
